@@ -50,6 +50,13 @@ jobs:
                - **Archivos implicados**: qué archivos del repo (`game.js`,
                  `index.html`, `style.css`) habría que tocar y por qué.
                - **Pasos sugeridos**: guía inicial para implementar la solución.
+               El comentario debe estar escrito en Markdown compatible con
+               GitHub (GitHub Flavored Markdown) para que GitHub lo renderice
+               correctamente: usa `##`/`###` para los títulos de sección, listas
+               con `-`, `**negritas**` para las etiquetas de cada sección, y
+               backticks para nombres de archivos y fragmentos de código (por
+               ejemplo `` `game.js` ``). No uses HTML crudo salvo el marcador
+               oculto indicado abajo.
                Empieza el comentario con el marcador oculto
                `<!-- claude-triage -->` en la primera línea.
             6. Idempotencia: si en los comentarios del issue ya existe uno que
