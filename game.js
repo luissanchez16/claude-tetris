@@ -16,6 +16,32 @@ const COLORS = [
   '#9e9e9e', // N - tuerca (gris metálico)
 ];
 
+// Paleta vibrante para el skin Neón (colores saturados que brillan)
+const NEON_COLORS = [
+  null,
+  '#00e5ff', // I
+  '#ffe100', // O
+  '#e040fb', // T
+  '#00e676', // S
+  '#ff1744', // Z
+  '#2979ff', // J
+  '#ff9100', // L
+  '#b0bec5', // N
+];
+
+// Paleta suave/desaturada para el skin Pastel
+const PASTEL_COLORS = [
+  null,
+  '#a8e6e6', // I
+  '#fff2b3', // O
+  '#e0b3e6', // T
+  '#bfe6bf', // S
+  '#f2b3b3', // Z
+  '#b3d1f2', // J
+  '#ffd9a8', // L
+  '#cfcfcf', // N
+];
+
 const PIECES = [
   null,
   [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
@@ -158,9 +184,25 @@ function updateHUD() {
   levelEl.textContent = level;
 }
 
-function drawBlock(context, x, y, colorIndex, size, alpha) {
-  if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+// ---- Skins / temas visuales ----
+// Cada skin aporta (a) una paleta equivalente a COLORS y (b) un renderizador
+// de bloque. drawBlock() delega en el renderizador del skin activo.
+
+function roundRectPath(context, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  context.beginPath();
+  context.moveTo(x + rr, y);
+  context.arcTo(x + w, y, x + w, y + h, rr);
+  context.arcTo(x + w, y + h, x, y + h, rr);
+  context.arcTo(x, y + h, x, y, rr);
+  context.arcTo(x, y, x + w, y, rr);
+  context.closePath();
+}
+
+// Retro: bloques cuadrados, colores planos. Debe permanecer idéntico al look
+// original (mismo cuerpo que el drawBlock previo).
+function drawRetroBlock(context, x, y, colorIndex, size, alpha, palette) {
+  const color = palette[colorIndex];
   context.globalAlpha = alpha ?? 1;
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
@@ -170,8 +212,77 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   context.globalAlpha = 1;
 }
 
+// Neón: fondo negro, efecto de brillo mediante shadowBlur/shadowColor.
+function drawNeonBlock(context, x, y, colorIndex, size, alpha, palette) {
+  const color = palette[colorIndex];
+  context.globalAlpha = alpha ?? 1;
+  context.shadowBlur = 12;
+  context.shadowColor = color;
+  context.fillStyle = color;
+  context.fillRect(x * size + 2, y * size + 2, size - 4, size - 4);
+  context.shadowBlur = 0;
+  context.shadowColor = 'transparent';
+  context.globalAlpha = 1;
+}
+
+// Pastel: colores suaves y esquinas redondeadas simuladas.
+function drawPastelBlock(context, x, y, colorIndex, size, alpha, palette) {
+  const color = palette[colorIndex];
+  const px = x * size + 1, py = y * size + 1, s = size - 2;
+  context.globalAlpha = alpha ?? 1;
+  context.fillStyle = color;
+  roundRectPath(context, px, py, s, s, 7);
+  context.fill();
+  // brillo suave superior
+  context.fillStyle = 'rgba(255,255,255,0.22)';
+  roundRectPath(context, px + 2, py + 2, s - 4, (s - 4) / 2, 5);
+  context.fill();
+  context.globalAlpha = 1;
+}
+
+// Pixel art: patrón de dithering (damero oscuro) más borde tipo relieve.
+function drawPixelBlock(context, x, y, colorIndex, size, alpha, palette) {
+  const color = palette[colorIndex];
+  const px = x * size, py = y * size;
+  const inner = size - 2;
+  context.globalAlpha = alpha ?? 1;
+  context.fillStyle = color;
+  context.fillRect(px + 1, py + 1, inner, inner);
+  // dithering en damero
+  const N = 5;
+  const unit = inner / N;
+  context.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let iy = 0; iy < N; iy++)
+    for (let ix = 0; ix < N; ix++)
+      if ((ix + iy) % 2 === 0)
+        context.fillRect(px + 1 + ix * unit, py + 1 + iy * unit, unit, unit);
+  // relieve: borde claro arriba/izquierda, oscuro abajo/derecha
+  context.fillStyle = 'rgba(255,255,255,0.25)';
+  context.fillRect(px + 1, py + 1, inner, 2);
+  context.fillRect(px + 1, py + 1, 2, inner);
+  context.fillStyle = 'rgba(0,0,0,0.28)';
+  context.fillRect(px + 1, py + size - 3, inner, 2);
+  context.fillRect(px + size - 3, py + 1, 2, inner);
+  context.globalAlpha = 1;
+}
+
+const SKINS = {
+  retro:  { palette: COLORS,        canvasBg: null,      drawBlock: drawRetroBlock },
+  neon:   { palette: NEON_COLORS,   canvasBg: '#000000', gridColor: 'rgba(255,255,255,0.05)', drawBlock: drawNeonBlock },
+  pastel: { palette: PASTEL_COLORS, canvasBg: null,      drawBlock: drawPastelBlock },
+  pixel:  { palette: COLORS,        canvasBg: null,      drawBlock: drawPixelBlock },
+};
+
+let activeSkin = SKINS.retro;
+
+function drawBlock(context, x, y, colorIndex, size, alpha) {
+  if (!colorIndex) return;
+  activeSkin.drawBlock(context, x, y, colorIndex, size, alpha, activeSkin.palette);
+}
+
 function drawGrid() {
-  ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--grid-line').trim();
+  ctx.strokeStyle = activeSkin.gridColor ||
+    getComputedStyle(document.body).getPropertyValue('--grid-line').trim();
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -327,6 +438,30 @@ themeToggle.addEventListener('click', () => {
   const isLight = !document.body.classList.contains('light-mode');
   applyTheme(isLight);
   localStorage.setItem('tetris-theme', isLight ? 'light' : 'dark');
+});
+
+// ---- Selector de skin (en vivo, sin recargar) ----
+const skinSelect = document.getElementById('skin-select');
+
+function applySkin(name, redraw) {
+  activeSkin = SKINS[name] || SKINS.retro;
+  const bg = activeSkin.canvasBg || '';
+  canvas.style.background = bg;
+  nextCanvas.style.background = bg;
+  if (redraw && board && current) {
+    draw();
+    drawNext();
+  }
+}
+
+const savedSkin = SKINS[localStorage.getItem('tetris-skin')] ? localStorage.getItem('tetris-skin') : 'retro';
+skinSelect.value = savedSkin;
+applySkin(savedSkin, false);
+
+skinSelect.addEventListener('change', () => {
+  const name = skinSelect.value;
+  applySkin(name, true);
+  localStorage.setItem('tetris-skin', name);
 });
 
 init();

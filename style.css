@@ -151,6 +151,30 @@ body {
   transition: background 0.25s, border-color 0.25s;
 }
 
+/* ---- Selector de skin ---- */
+.skin-select {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--kbd-text);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.25s, color 0.25s, border-color 0.25s;
+}
+
+.skin-select:hover {
+  border-color: #7aa2f7;
+  color: #7aa2f7;
+}
+
+.skin-select:focus {
+  outline: none;
+  border-color: #7aa2f7;
+}
+
 /* ---- Controles ---- */
 .controls ul {
   list-style: none;
